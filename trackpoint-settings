@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+#
+# script: trackpoint-settings
+
+set -e
+
+readonly SYS_PATH=${SYS_PATH:-/sys/devices/platform/i8042/serio1/serio2}
+readonly VALUE_SEPARATOR=" "
+readonly PROPERTIES="draghys \
+	             drift_time \
+		     inertia \
+		     jenks \
+		     mindrag \
+		     press_to_select \
+                     rate \
+		     reach \
+		     resetafter \
+		     resolution \
+		     resync_time \
+		     sensitivity \
+                     skipback \
+		     speed \
+		     thresh \
+		     upthresh \
+		     ztime"
+
+# Set property value
+#
+# Arguments
+#   1: Property name
+#   2: New value
+# Globals
+#   SYS_PATH: SYS FS path for trackpoint driver
+# Returns
+#   None
+#
+set_property()
+{
+    echo "$2" > "$SYS_PATH/$1"
+}
+
+# Get current property value
+#
+# Arguments
+#   1: Property name
+# Globals
+#   SYS_PATH: SYS FS path for trackpoint driver
+# Returns
+#   Current property value to stdout
+#
+get_property()
+{
+    read -r < "$SYS_PATH/$1" && echo "$REPLY"
+}
+
+# Show current property value
+#
+# Arguments
+#   1: Property name
+# Globals
+#   VALUE_SEPARATOR: String used to delimit property and value
+# Returns
+#   Property name and value pair to stdout
+#
+show_property()
+{
+    printf "%s$VALUE_SEPARATOR%s\\n" "$1" "$(get_property "$1")"
+}
+
+# List current properties and values
+#
+# Arguments
+#   None
+# Globals
+#   PROPERTIES: Supported property list
+# Returns
+#   List of property value pairs to stdout
+#
+list_properties()
+{
+    local property
+
+    for property in $PROPERTIES ; do
+        show_property "$property"
+    done
+}
+
+# Set properties values from list in stdin
+#
+# Input should be provided as property-value pairs separated by
+# the defined VALUE_SEPARATOR.
+#
+# Arguments
+#   None
+# Globals
+#   VALUE_SEPARATOR: String used to delimit property and value
+# Returns
+#   None
+#
+set_properties_from_list()
+{
+    local line
+
+    while IFS=$VALUE_SEPARATOR read -ra line ; do
+        set_property "${line[0]}" "${line[1]}"
+    done
+}
+
+usage()
+{
+    echo "$0 [-s] [-l]"
+}
+
+main()
+{
+    local opt
+
+    while getopts "g:ls" opt ; do
+        case ${opt} in
+            s)
+                set_properties_from_list
+                ;;
+            l)
+                list_properties
+                ;;
+            g)
+                show_property "$OPTARG"
+                ;;
+            ?)
+                usage
+        esac
+    done
+
+    if [ $OPTIND -gt 1 ] ; then
+	return 0
+    fi
+
+    case $# in
+	0)
+	    list_properties
+	    ;;
+	1)
+	    show_property "$1"
+	    ;;
+	2)
+	    set_property "$1" "$2"
+	    ;;
+	*)
+	    usage
+	    return 1
+    esac
+}
+
+main "$@"
