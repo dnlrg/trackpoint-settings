@@ -50,7 +50,7 @@ set_property()
 #
 get_property()
 {
-    read -r < "$SYS_PATH/$1" && echo "$REPLY"
+    echo "$(< "$SYS_PATH/$1")"
 }
 
 # Show current property value
